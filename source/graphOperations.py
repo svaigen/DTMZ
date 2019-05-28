@@ -4,6 +4,18 @@ from shapely.geometry import Point
 import matplotlib.pyplot as plt
 import networkx as nx
 
+def buildGraphFromCSV(nodes_file, edges_file):
+    nodes = pd.read_csv(nodes_file, delimiter=",")
+    edges = pd.read_csv(edges_file, engine="python", usecols=["edge_id","source","target"])
+    G = nx.empty_graph(0)
+    G = buildNodesAndEdges(G, nodes, edges)
+    nx.set_node_attributes(G, buildNodeAttributeDict(nodes,"node_id","latitude") , "latitude")
+    nx.set_node_attributes(G, buildNodeAttributeDict(nodes,"node_id","longitude") , "longitude")
+    print("Graph info:")
+    print("Number of nodes: {}".format(len(G.nodes)))
+    print("Number of edges: {}".format(len(G.edges)))  
+    return G
+
 def buildNodeAttributeDict(nodes,id,attr):
     attr_dict = {}
     for indices, row in nodes.iterrows():
@@ -15,7 +27,7 @@ def buildNodesAndEdges(G, nodes, edges):
     for i, n in nodes.iterrows():
         G.add_node(n["node_id"])
     counter = 0
-    f = open('ignored_edges.csv','w')
+    f = open('./../data/ignored_edges.csv','w')
     f.write("edge_id,source,target\n")
     for i, e in edges.iterrows():
         if (G.has_node(e["source"]) and G.has_node(e["target"])):
@@ -23,8 +35,7 @@ def buildNodesAndEdges(G, nodes, edges):
         else:
             f.write("{},{},{}\n".format(e["edge_id"],e["source"],e["target"]))
             counter = counter + 1            
-    f.close()
-    print("number of ignored edges: {}".format(counter))
+    f.close()    
     return G
 
 def showGraph(G):
@@ -32,6 +43,7 @@ def showGraph(G):
     nx.draw_networkx(G,pos=nx.circular_layout(G))
     plt.draw()
     plt.show()
+    return None
 
 def saveNodesDegrees(G,pathFile):
     f = open (pathFile,'w')
@@ -39,7 +51,7 @@ def saveNodesDegrees(G,pathFile):
     for node in G.nodes:
         f.write("{},{}\n".format(node,G.degree[node]))        
     f.close()
-    return 1
+    return None
 
 def buildMapPoints(nodes):
     points = pd.DataFrame()
@@ -60,22 +72,4 @@ def visualizeMap(points, region):
     points.plot(ax=map, marker="o",  markersize=5, alpha=0.5)
     ax.set_title("Map visualization")
     plt.show()
-
-edges_file = "./../data/edges2.csv"
-nodes_file = "./../data/nodes.csv"
-
-nodes = pd.read_csv(nodes_file, delimiter=",")
-edges = pd.read_csv(edges_file, engine="python", usecols=["edge_id","source","target"])
-
-G = nx.empty_graph(0)
-G = buildNodesAndEdges(G, nodes, edges)
-nx.set_node_attributes(G, buildNodeAttributeDict(nodes,"node_id","latitude") , "latitude")
-nx.set_node_attributes(G, buildNodeAttributeDict(nodes,"node_id","longitude") , "longitude")
-
-print("Number of nodes: {}".format(len(G.nodes)))
-print("Number of edges: {}".format(len(G.edges)))   
-
-# geo_points = buildMapPoints(nodes)
-# san_francisco_map = buildMapRegion('./../data/sf.geojson')
-# visualizeMap(geo_points,san_francisco_map)
-#saveNodesDegrees(G,"./../data/nodesDegrees.csv")
+    return None
