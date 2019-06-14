@@ -1,8 +1,10 @@
 import pandas as pd
 import geopandas as gpd
+import numpy as np
 from shapely.geometry import Point
 import matplotlib.pyplot as plt
 import networkx as nx
+from sklearn.cluster import KMeans
 
 def buildGraphFromCSV(nodes_file, edges_file):
     nodes = pd.read_csv(nodes_file, delimiter=",")
@@ -11,6 +13,7 @@ def buildGraphFromCSV(nodes_file, edges_file):
     G = buildNodesAndEdges(G, nodes, edges)
     nx.set_node_attributes(G, buildNodeAttributeDict(nodes,"node_id","latitude") , "latitude")
     nx.set_node_attributes(G, buildNodeAttributeDict(nodes,"node_id","longitude") , "longitude")
+    nx.set_node_attributes(G, buildNodeAttributeDict(nodes,"node_id","region") , "region")
     print("Graph info:")
     print("Number of nodes: {}".format(len(G.nodes)))
     print("Number of edges: {}".format(len(G.edges)))  
@@ -37,6 +40,21 @@ def buildNodesAndEdges(G, nodes, edges):
             counter = counter + 1            
     f.close()    
     return G
+
+def clusterizingNodes(G, nclusters,file_path):
+    coordinates = []
+    for node in G.nodes():
+        coordinates.append([G.node[node]['latitude'],G.node[node]['longitude']])
+    coordinates = np.asarray(coordinates)
+    kmeans = KMeans(n_clusters=nclusters, max_iter=500, precompute_distances='auto', random_state=1, n_jobs=-1).fit(coordinates)    
+    f = open(file_path,'w')
+    f.write("node_id,latitude,longitude,region\n")
+    index = 0
+    for node in G.nodes():
+        f.write("{},{},{},{}\n".format(node, G.node[node]['latitude'], G.node[node]['longitude'], kmeans.labels_.item(index)))
+        index += 1
+    f.close()
+    return None
 
 def showGraph(G):
     print("building a visual representation of G")
@@ -66,10 +84,20 @@ def buildMapRegion(region_file):
     region = region.rename(columns={'geometry': 'geometry'}).set_geometry('geometry')
     return region
 
-def visualizeMap(points, region):
+def visualizeMap(nodes_df, nregions, region_file):
+    points_list = []
+    for i in range(nregions):
+         #SG = G.subgraph([n for n, attrdict in G.node.items() if attrdict['region'] == i])
+        nodes = nodes_df[nodes_df['region'] == i]
+        points_list.append(buildMapPoints(nodes))
+    region = buildMapRegion(region_file)
     fig, ax = plt.subplots(1, subplot_kw=dict(alpha=0.3))
-    map = region.plot(ax=ax, color='green')
-    points.plot(ax=map, marker="o",  markersize=5, alpha=0.5)
+    map = region.plot(ax=ax, color='gray')
+    i = 0
+    colors=['black','yellow','red','white','orange','blue','purple','pink','brown','green']
+    for points in points_list:
+        points.plot(ax=map, marker="o", markersize=5, alpha=0.5, color=colors[i])
+        i += 1
     ax.set_title("Map visualization")
     plt.show()
     return None

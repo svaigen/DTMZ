@@ -20,27 +20,54 @@ def getDateIntervalIndex(granularity,timestamp):
     elif (granularity == INTERVAL_HALF_HOUR):
         return ( 2 * formatted_date.hour + formatted_date.minute // 30)
 
-def calculateTripsByInterval(interval, timestamps, granularity):
+def calculateTripsFlow(interval, index_day, timestamps, granularity):
     interval_indexes_to_check = [False] * len(interval)
     for timestamp in timestamps:
         index = getDateIntervalIndex(granularity,timestamp)
         interval_indexes_to_check[index] = True
     for i in range(len(interval_indexes_to_check)):
         if (interval_indexes_to_check[i] == True):
-            interval[list(interval)[i]] += 1
+            interval[list(interval)[i]][index_day] += 1
     return None
 
-def calculateTripsByDayAndInterval(days_path,granularity):    
-    days = {'day': []}    
+def getDays(days_path):
+    days = []
     for day in os.listdir(days_path):
-        days['day'].append(day)
-    interval = generateIntervalsFlow(granularity,len(days['day']))
-    dict = {**days, **interval}
-    
-    return None
-    
+        days.append(day)
+    return days
 
-calculateTripsByDayAndInterval("./../data/tripsPerDay/", INTERVAL_HOUR)
+def calculateTripsByDayAndInterval(days_path,granularity):
+    print("Calculating flow...")    
+    days = getDays(days_path)
+    flow_interval = generateIntervalsFlow(granularity,len(days))
+    index_day = 0
+    for day in os.listdir(days_path):
+        print("Calculating day {} ({}/{})".format(day,index_day + 1,len(days)))
+        for trips in os.listdir("{}{}".format(days_path,day)):
+            df = pd.read_csv("{}{}/{}".format(days_path,day,trips), delimiter=',', header=0)
+            calculateTripsFlow(flow_interval, index_day, df['time'], granularity)                        
+        index_day+=1   
+    return flow_interval
+
+def flowToCSV(flow,days,output_file):
+    print("Generating .csv ...")
+    f = open(output_file,'w')
+    intervals = ""
+    for key in flow:
+        intervals += "{},".format(key)
+    f.write("day,{}\n".format(intervals))
+    for i in range(len(days)):
+        flow_day = ""
+        for key in flow:
+            flow_day += "{},".format(flow[key][i])
+        f.write("{},{}\n".format(days[i],flow_day))
+    f.close()
+    print("Done! File available in: {}".format(output_file))
+    return None
+
+# flow = calculateTripsByDayAndInterval("./../data/tripsPerDay/", INTERVAL_HALF_HOUR)
+# flowToCSV(flow,getDays("./../data/tripsPerDay/"),"./../data/flow-day-interval-30-minutes.csv")
+
 
 # input_dir = './../data/trips/'
 # interval = generateIntervalsFlow(INTERVAL_HOUR)
