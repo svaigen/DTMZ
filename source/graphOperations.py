@@ -5,6 +5,9 @@ from shapely.geometry import Point
 import matplotlib.pyplot as plt
 import networkx as nx
 from sklearn.cluster import KMeans
+import dtmzUtils as utils
+import copy
+import operator
 
 def buildGraphFromCSV(nodes_file, edges_file):
     nodes = pd.read_csv(nodes_file, delimiter=",")
@@ -71,33 +74,44 @@ def saveNodesDegrees(G,pathFile):
     f.close()
     return None
 
-def buildMapPoints(nodes):
-    points = pd.DataFrame()
-    points['geometry'] = nodes.apply(lambda row: Point(row['longitude'], row['latitude']), axis=1)
-    geo_points = gpd.GeoDataFrame(points, geometry='geometry')
-    geo_points.crs = {'init':'epsg:3395'}
-    return geo_points
-
-def buildMapRegion(region_file):
-    region = gpd.read_file(region_file)
-    region.crs = {'init': 'epsg:3395'}
-    region = region.rename(columns={'geometry': 'geometry'}).set_geometry('geometry')
-    return region
-
-def visualizeMap(nodes_df, nregions, region_file):
-    points_list = []
-    for i in range(nregions):
-         #SG = G.subgraph([n for n, attrdict in G.node.items() if attrdict['region'] == i])
-        nodes = nodes_df[nodes_df['region'] == i]
-        points_list.append(buildMapPoints(nodes))
-    region = buildMapRegion(region_file)
-    fig, ax = plt.subplots(1, subplot_kw=dict(alpha=0.3))
-    map = region.plot(ax=ax, color='gray')
-    i = 0
-    colors=['black','yellow','red','white','orange','blue','purple','pink','brown','green']
-    for points in points_list:
-        points.plot(ax=map, marker="o", markersize=5, alpha=0.5, color=colors[i])
-        i += 1
-    ax.set_title("Map visualization")
-    plt.show()
+def removingNodesDegreeZeroFromFile(nodes_file, G):
+    nodes_df = pd.read_csv(nodes_file, delimiter=",")
+    nodes_df = nodes_df.set_index("node_id")
+    for node in G.nodes:
+        if (G.degree[node] == 0):
+            nodes_df = nodes_df.drop(node,axis=0)
+            print("Node removed: {}".format(node))
+    nodes_df.to_csv(nodes_file)
     return None
+
+def saveArticulationNodesInfo(G,output_file):
+    f = open(output_file,'w')
+    f.write("node_id,number_of_components,length_of_components\n")
+    print("Processing Articulations...")
+    total_artic = len(list(nx.articulation_points(G)))
+    i = 1
+    for articulation in nx.articulation_points(G):
+        print("{}/{}".format(i,total_artic))
+        i+=1   
+        GA = copy.deepcopy(G)
+        GA.remove_node(articulation)
+        f.write("{},{},(".format(articulation, len(list(nx.connected_components(GA)))))
+        for component in nx.connected_components(GA):
+            f.write("{}-".format(len(component)))
+        f.write(")\n")
+    f.close()
+    return None
+
+def selectMixZonesByEngenvectorAndRegion(n_mixzones,G):
+    centrality = nx.eigenvector_centrality(G,max_iter=1000)
+    nodes_ordered = sorted(centrality.items(), key = operator.itemgetter(1), reverse = True)
+    regions_placement = {}
+    selected_mixzones = []
+    number_of_mixzones_placed = 0
+    for node, center_value in nodes_ordered:
+        if not (G.node[node]["region"] in regions_placement.keys()):
+            regions_placement[G.node[node]["region"]] = 1
+            selected_mixzones.append(node)
+            number_of_mixzones_placed += 1
+        if number_of_mixzones_placed == n_mixzones:
+            return selected_mixzones
