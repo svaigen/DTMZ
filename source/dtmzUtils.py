@@ -7,6 +7,11 @@ from matplotlib import colors as mcolors
 import networkx as nx
 from sklearn.cluster import KMeans
 import random
+import mixZone as mz
+import mobileEntity as me
+import os
+import datetime as dt
+import string
 
 def removingNoiseFromNodes(nodes_file,G):
     nodes = pd.read_csv(nodes_file, delimiter=",")
@@ -96,3 +101,34 @@ def visualizeMapByGraphComponent(nodes_df, G, region_file):
     ax.set_title("Map visualization")
     plt.show()
     return None
+
+def generateMixZonesObjects(mixzones_ID,G,k_anonimity):
+    mixzones = []
+    for id in mixzones_ID:
+        mixzones.append(mz.mixZone(id,k_anonimity,G.nodes[id]['latitude'],G.nodes[id]['longitude'],100))
+    return mixzones
+
+def generateMobileEntitiesByFolder(path):
+    mobileEntities = []
+    for trip_file in os.listdir(path):
+        trip_df = pd.read_csv("{}{}".format(path,trip_file), delimiter=',')
+        firstRow = True
+        mobile_entity = {}
+        for i, data in trip_df.iterrows():            
+            if firstRow:
+                mobile_entity = me.mobileEntity(data['name'],(data['lat'],data['lon'],data['time']),data['id_trace'])
+                firstRow = False
+            else:
+                mobile_entity.addTrace((data['lat'],data['lon'],data['time']))
+        mobileEntities.append(mobile_entity)
+    return mobileEntities
+
+def formatTimestamp(timestamp, format):
+    return (dt.datetime.fromtimestamp(timestamp) - dt.timedelta(hours=7)).strftime(format)
+
+def generatingRandomPseudonym(size):
+    samples = ["q","w","e","r","t","y","u","i","o","p","a","s","d","f","g","h","j","k","l","z","x","c","v","b","n","m","1","2","3","4","5","6","7","8","9","0"]
+    pseudonym = ""
+    for i in range(size):
+        pseudonym += random.choice(samples)
+    return pseudonym

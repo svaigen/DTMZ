@@ -37,7 +37,6 @@ def separatingTracesByTrip():
             counter = counter + 1
     return None
 
-
 def organizingTripsPerDay():
     dir_input = "./../data/trips/"
     dir_output = "./../data/tripsPerDay/"
@@ -53,4 +52,15 @@ def makeDirTripsPerDay():
         os.mkdir("./../data/tripsPerDay/{}".format(day))
     return None
 
-organizingTripsPerDay()
+def fixTraceID():
+    days = ['2008-05-19','2008-05-18','2008-05-21','2008-05-17','2008-06-08','2008-06-06','2008-06-07','2008-06-09','2008-05-20','2008-06-01','2008-06-04','2008-06-03','2008-06-05','2008-06-02','2008-05-24','2008-05-25','2008-05-23','2008-05-22','2008-05-26','2008-05-29','2008-05-28','2008-05-27','2008-05-30','2008-05-31']
+    dir = "./../data/tripsPerDay/"
+    for day in days:
+        print("Fixing day: {}".format(day))
+        for csv in os.listdir("{}{}/".format(dir,day)):
+            df = pd.read_csv("{}{}/{}".format(dir,day,csv), delimiter=',')
+            index = int(csv.split('.')[0])
+            df['id_trace'] = index            
+            df.to_csv("{}{}/{}".format(dir,day,csv),index=False)
+    return None
+

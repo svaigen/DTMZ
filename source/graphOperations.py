@@ -102,7 +102,7 @@ def saveArticulationNodesInfo(G,output_file):
     f.close()
     return None
 
-def selectMixZonesByEngenvectorAndRegion(n_mixzones,G):
+def selectMixZonesByEngenvectorAndRegion(n_mixzones,G,k_anonymity):
     centrality = nx.eigenvector_centrality(G,max_iter=1000)
     nodes_ordered = sorted(centrality.items(), key = operator.itemgetter(1), reverse = True)
     regions_placement = {}
@@ -114,4 +114,4 @@ def selectMixZonesByEngenvectorAndRegion(n_mixzones,G):
             selected_mixzones.append(node)
             number_of_mixzones_placed += 1
         if number_of_mixzones_placed == n_mixzones:
-            return selected_mixzones
+            return utils.generateMixZonesObjects(selected_mixzones,G,k_anonymity)
