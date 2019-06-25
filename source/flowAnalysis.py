@@ -93,6 +93,27 @@ def generateRegionTimeKey(region,timestamp):
     key = "{} {} {}".format(region,d.strftime("%Y-%m-%d"),t_interval.strftime("%H:%M:%S"))
     return key
 
+def initializeRegionsFlowHistory(n_regions,rows,cols):
+    regions_flow_history = {}
+    for r in range(n_regions):
+        df = pd.DataFrame(columns=cols)
+        df.set_index('day')
+        df['day'] = rows
+        for col_id in range(1,len(cols)):
+            df[cols[col_id]] = 0
+        regions_flow_history[r] = df
+    return regions_flow_history
+
+def calculateRegionFlowHistory(days,time_intervals,kmeans):
+    regions_flow_history = utils.initializeRegionsFlowHistory(n_regions,days,['day'] + time_intervals)
+    for day in days:
+        print("Calculating day: {}".format(day))
+        mobile_entities = utils.generateMobileEntitiesByFolder("./../data/tripsPerDay/{}/".format(day))    
+        flow.calculateFlow(regions_flow_history,mobile_entities,kmeans)
+    for pd in regions_flow_history:
+        regions_flow_history[pd].to_csv("./../flow/region-{}.csv".format(pd))
+    return None
+
 
 # flow = calculateTripsByDayAndInterval("./../data/tripsPerDay/", INTERVAL_HALF_HOUR)
 # flowToCSV(flow,getDays("./../data/tripsPerDay/"),"./../data/flow-day-interval-30-minutes.csv")

@@ -133,20 +133,17 @@ def generatingRandomPseudonym(size):
         pseudonym += random.choice(samples)
     return pseudonym
 
-def initializeRegionsFlowHistory(n_regions,rows,cols):
-    regions_flow_history = {}
-    for r in range(n_regions):
-        df = pd.DataFrame(columns=cols)
-        df.set_index('day')
-        df['day'] = rows
-        for col_id in range(1,len(cols)):
-            df[cols[col_id]] = 0
-        regions_flow_history[r] = df
-    return regions_flow_history
-
 def getIndexDay(day):
     days = ['2008-05-17','2008-05-18','2008-05-19','2008-05-20','2008-05-21','2008-05-22','2008-05-23','2008-05-24','2008-05-25','2008-05-26','2008-05-27','2008-05-28','2008-05-29','2008-05-30','2008-05-31','2008-06-01','2008-06-02','2008-06-03','2008-06-04','2008-06-05','2008-06-06','2008-06-07','2008-06-08','2008-06-09']
     for i in range(len(days)):
         if days[i] == day:
             return i
     return -1
+
+def calculateEWMA(flow,period):
+    array = ''
+    if len(flow) <= period:
+        array = pd.DataFrame(flow).ewm(com=0.5).mean().to_numpy()
+    else:
+        array = pd.DataFrame(flow[(len(flow) - period):len(flow)]).ewm(com=0.5).mean().to_numpy()
+    return array.reshape(1,array.shape[0])

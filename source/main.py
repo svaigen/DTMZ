@@ -13,23 +13,17 @@ time_intervals = ['05:59:59','10:59:59','16:59:59','23:59:59']
 n_regions = 128
 n_mixzones = 8
 k_anonymity = 2
+flow_window = 50
 nodes_file = "./../data/nodesByRegion.csv" 
 edges_file = "./../data/edges2.csv"
 log_file = "./log.txt"
+region_flow_path = "./../flow/"
+mixzones_path = "./../data/mixzones.csv"
 G = graphOp.buildGraphFromCSV(nodes_file, edges_file)
 kmeans = graphOp.clusterizingNodes(G,n_regions)
+graphOp.calculateMixZonesByFlow(days, time_intervals, n_regions, n_mixzones, k_anonymity, flow_window, region_flow_path, G, kmeans,mixzones_path)
 
 # mixzones = graphOp.selectMixZonesByEngenvectorAndRegion(n_mixzones,G,k_anonymity)
-
-regions_flow_history = utils.initializeRegionsFlowHistory(n_regions,days,['day'] + time_intervals)
-for day in days:
-    print("Calculating day: {}".format(day))
-    mobile_entities = utils.generateMobileEntitiesByFolder("./../data/tripsPerDay/{}/".format(day))    
-    flow.calculateFlow(regions_flow_history,mobile_entities,kmeans)
-for pd in regions_flow_history:
-    regions_flow_history[pd].to_csv("./../flow/region-{}.csv".format(pd))
-    print(regions_flow_history[pd])
-
 # sim.simulation(mixzones,mobile_entities,log_file)
 
 # df = pd.read_csv(nodes_file,delimiter=',')

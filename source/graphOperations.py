@@ -8,6 +8,8 @@ from sklearn.cluster import KMeans
 import dtmzUtils as utils
 import copy
 import operator
+import os
+from haversine import haversine
 
 def buildGraphFromCSV(nodes_file, edges_file):
     nodes = pd.read_csv(nodes_file, delimiter=",")
@@ -116,3 +118,96 @@ def selectMixZonesByEngenvectorAndRegion(n_mixzones,G,k_anonymity):
             number_of_mixzones_placed += 1
         if number_of_mixzones_placed == n_mixzones:
             return utils.generateMixZonesObjects(selected_mixzones,G,k_anonymity)
+
+def calculateMixZonesByFlow(days, time_intervals, n_regions, n_mixzones, k_anonymity, flow_window, region_flow_path, G, kmeans, mixzones_path):
+    total_intervals = len(time_intervals) * len(days)
+    regions_flow_history = [None] * n_regions
+    for csv in os.listdir(region_flow_path):
+        regions_flow_history[int(csv.split("region-")[1].split(".")[0])] = pd.read_csv("{}{}".format(region_flow_path,csv),delimiter=',')           
+    regions_flow_arrays = generateFlowAsArray(regions_flow_history, days, time_intervals)
+    regions_ewma = []
+    for region_flow in regions_flow_arrays:
+        regions_ewma.append(utils.calculateEWMA(region_flow,len(region_flow)))
+    ewma_matrix = regions_ewma[0]
+    for i in range(1,len(regions_ewma)):
+        ewma_matrix = np.vstack((ewma_matrix, regions_ewma[i]))
+    sum_ewma = np.sum(ewma_matrix,axis=0)
+    mixzones_demand = []
+    for i in range(total_intervals):
+        mixzones_demand.append(calculateRegionsAndNumberOfMixZonesByFlowRate(ewma_matrix[:,i],sum_ewma[i], n_mixzones, n_regions))
+    regions_ordered_nodes = getOrderedNodesByEngenvector(G,n_regions)
+    fmz = open(mixzones_path,'w')
+    for demand in mixzones_demand:
+        for key in demand:
+            number_of_mixzones = demand[key]
+            fmz.write(getMixZonesByDemand(number_of_mixzones,regions_ordered_nodes[key],G))
+        fmz.write("\n")            
+    fmz.close()
+    return None
+
+def getMixZonesByDemand(number_of_mixzones, nodes_ordered, G):
+    distance_min = 500
+    remaining_mixzones = number_of_mixzones
+    places = []
+    for node in nodes_ordered:
+        if remaining_mixzones == number_of_mixzones:
+            places.append(node)
+            remaining_mixzones -= 1
+        else:
+            distance_ok = True
+            for place in places:
+                distance = haversine((G.node[place]['latitude'],G.node[place]['longitude']),(G.node[node]['latitude'],G.node[node]['longitude'])) * 1000
+                if(distance < distance_min):
+                    distance_ok = False
+            if distance_ok:
+                places.append(node)
+                remaining_mixzones -= 1
+        if remaining_mixzones == 0:
+            break;
+    response = ""
+    for place in places:
+        response = response + "{},".format(place)
+    return response
+
+def getOrderedNodesByEngenvector(G, n_regions):
+    regions_ordered_nodes = [None] * n_regions
+    centrality = nx.eigenvector_centrality(G,max_iter=1000)
+    nodes_ordered = sorted(centrality.items(), key = operator.itemgetter(1), reverse = True)
+    for node, c in nodes_ordered:
+        if regions_ordered_nodes[int(G.node[node]['region'])] is None:
+            regions_ordered_nodes[int(G.node[node]['region'])] = [node]
+        else:
+            regions_ordered_nodes[int(G.node[node]['region'])].append(node)
+    return regions_ordered_nodes
+
+def calculateRegionsAndNumberOfMixZonesByFlowRate(ewma_values, ewma_sum, n_mixzones, n_regions):
+    limiar = n_mixzones / n_regions
+    regions_rate = {}
+    for i in range(len(ewma_values)):
+        regions_rate[i] = ewma_values[i] / ewma_sum
+    rates_ordered = sorted(regions_rate.items(), key = operator.itemgetter(1), reverse = True)
+    mixzones_remaining = n_mixzones
+    regions_mixzones = {}
+    for rateID in rates_ordered:
+        if mixzones_remaining == 0:
+            return regions_mixzones
+        attributed_mixzones = (rateID[1] // limiar) + 1
+        if attributed_mixzones < mixzones_remaining:
+            regions_mixzones[rateID[0]] = attributed_mixzones
+            mixzones_remaining -= attributed_mixzones
+        else:
+            regions_mixzones[rateID[0]] = mixzones_remaining
+            mixzones_remaining = 0
+    return regions_mixzones
+
+def generateFlowAsArray(regions_flow_history, days, time_intervals):
+    regions_flows =[None] * len(regions_flow_history)
+    counter = 0
+    for region in regions_flow_history:
+        flows = []
+        for day in days:
+            for interval in time_intervals:
+                flows.append(region.ix[utils.getIndexDay(day),interval])
+        regions_flows[counter] = flows
+        counter += 1
+    return regions_flows
