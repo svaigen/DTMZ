@@ -44,12 +44,15 @@ def buildNodesAndEdges(G, nodes, edges):
     f.close()    
     return G
 
-def clusterizingNodes(G, nclusters,file_path):
+def clusterizingNodes(G, nclusters):
     coordinates = []
     for node in G.nodes():
         coordinates.append([G.node[node]['latitude'],G.node[node]['longitude']])
     coordinates = np.asarray(coordinates)
-    kmeans = KMeans(n_clusters=nclusters, max_iter=500, precompute_distances='auto', random_state=1, n_jobs=-1).fit(coordinates)    
+    kmeans = KMeans(n_clusters=nclusters, max_iter=500, precompute_distances='auto', random_state=1, n_jobs=-1).fit(coordinates)        
+    return kmeans
+
+def saveClusters(G, kmeans, file_path):
     f = open(file_path,'w')
     f.write("node_id,latitude,longitude,region\n")
     index = 0
@@ -57,8 +60,6 @@ def clusterizingNodes(G, nclusters,file_path):
         f.write("{},{},{},{}\n".format(node, G.node[node]['latitude'], G.node[node]['longitude'], kmeans.labels_.item(index)))
         index += 1
     f.close()
-    return None
-
 def showGraph(G):
     print("building a visual representation of G")
     nx.draw_networkx(G,pos=nx.circular_layout(G))

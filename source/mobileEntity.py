@@ -15,7 +15,6 @@ class mobileEntity:
 
     def setAnon(self,id_anon):
         if self.anon_history == None:
-            print("{}-{}".format(len(self.trace),self.index_current_location))
             self.anon_history = {id_anon : self.trace[self.index_current_location][2]}
         else:
             self.anon_history[id_anon] = self.trace[self.index_current_location][2]

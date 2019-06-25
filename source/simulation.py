@@ -38,7 +38,7 @@ def simulation(mixzones,mobile_entities,log_file):
     for entity in mobile_entities:
         if(entity.number_of_anonymizations > 0):
             anonymized_counter += 1
-            print("Entity anonymized: {}".format(entity.pseudonym))
+            print("Entity anonymized: {} - ID: {}".format(entity.pseudonym,entity.id))
             for anon in entity.anon_history:
                 print("- Pseudonym: {} / timestamp: {}".format(anon,entity.anon_history[anon]))
             print()

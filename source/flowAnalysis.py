@@ -2,6 +2,8 @@ import pandas as pd
 import os
 import shutil
 import datetime as dt
+import numpy as np
+import dtmzUtils as utils
 
 INTERVAL_HOUR = 1
 INTERVAL_HALF_HOUR = 2
@@ -64,6 +66,33 @@ def flowToCSV(flow,days,output_file):
     f.close()
     print("Done! File available in: {}".format(output_file))
     return None
+
+def calculateFlow(regions_flow_history,mobile_entities,cluster_model):
+    for entity in mobile_entities:
+        regions_time_matched = {}
+        for point in entity.trace:
+            location = np.asarray([point[0],point[1]]).reshape(1,-1)
+            prediction = cluster_model.predict(location)
+            region_time_key = generateRegionTimeKey(prediction[0], point[2])
+            regions_time_matched[region_time_key] = 1
+        for key in regions_time_matched:
+            reg = key.split()[0]
+            day = key.split()[1]
+            interval_t = key.split()[2]
+            regions_flow_history[int(reg)].ix[utils.getIndexDay(day),interval_t] += 1
+    return None
+
+def generateRegionTimeKey(region,timestamp):
+    d = dt.datetime.fromtimestamp(timestamp) - dt.timedelta(hours=7)
+    intervals = [dt.datetime.strptime("05:59:59","%H:%M:%S"),dt.datetime.strptime("10:59:59","%H:%M:%S"),dt.datetime.strptime("16:59:59","%H:%M:%S"),dt.datetime.strptime("23:59:59","%H:%M:%S")]
+    t_interval = ""
+    for interval in intervals:
+        t_interval = interval.time()
+        if d.time() < interval.time():
+            break
+    key = "{} {} {}".format(region,d.strftime("%Y-%m-%d"),t_interval.strftime("%H:%M:%S"))
+    return key
+
 
 # flow = calculateTripsByDayAndInterval("./../data/tripsPerDay/", INTERVAL_HALF_HOUR)
 # flowToCSV(flow,getDays("./../data/tripsPerDay/"),"./../data/flow-day-interval-30-minutes.csv")
