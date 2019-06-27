@@ -18,6 +18,8 @@ class mixZone:
         self.longitude = longitude
         self.radius = radius
         self.geoLocation = (latitude,longitude)
+        self.entities_covered = None
+        self.entities_anonymized = None
     
     def isInCoverage(self, entity_location):
         distance = haversine((self.latitude,self.longitude),entity_location) * 1000

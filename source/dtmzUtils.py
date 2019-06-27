@@ -105,7 +105,7 @@ def visualizeMapByGraphComponent(nodes_df, G, region_file):
 def generateMixZonesObjects(mixzones_ID,G,k_anonimity):
     mixzones = []
     for id in mixzones_ID:
-        mixzones.append(mz.mixZone(id,k_anonimity,G.nodes[id]['latitude'],G.nodes[id]['longitude'],100))
+        mixzones.append(mz.mixZone(id,k_anonimity,G.nodes[id]['latitude'],G.nodes[id]['longitude'],200))
     return mixzones
 
 def generateMobileEntities(path):

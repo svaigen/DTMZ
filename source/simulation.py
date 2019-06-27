@@ -30,6 +30,7 @@ def simulation(G, n_mixzones, k_anonymity, mobile_entities_path,sim_file,mixzone
                     m.entities[entity].in_mix_zone = False
                     m.entities[entity].mix_zone = None            
             if (timestamp_date > last_date):
+                print("Simulation ends at {}".format(dt.datetime.now()))
                 return None
             counter_changes += 1
             counter_day, counter_interval = adjustCounters(counter_changes, counter_day, counter_interval)
