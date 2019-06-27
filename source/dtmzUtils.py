@@ -108,6 +108,29 @@ def generateMixZonesObjects(mixzones_ID,G,k_anonimity):
         mixzones.append(mz.mixZone(id,k_anonimity,G.nodes[id]['latitude'],G.nodes[id]['longitude'],100))
     return mixzones
 
+def generateMobileEntities(path):
+    mobileEntities = []
+    entities_per_day = []
+    # days = ['2008-05-17','2008-05-18','2008-05-19','2008-05-20']
+    # for day in days:
+    for day in os.listdir(path):
+        counter_entity = 0
+        print("generating mobile entities of day {}".format(day))
+        for trip_file in os.listdir("{}{}".format(path,day)):
+            counter_entity += 1
+            trip_df = pd.read_csv("{}{}/{}".format(path,day,trip_file), delimiter=',')
+            firstRow = True
+            mobile_entity = {}
+            for i, data in trip_df.iterrows():            
+                if firstRow:
+                    mobile_entity = me.mobileEntity(data['name'],(data['lat'],data['lon'],data['time']),data['id_trace'])
+                    firstRow = False
+                else:
+                    mobile_entity.addTrace((data['lat'],data['lon'],data['time']))
+            mobileEntities.append(mobile_entity)
+        entities_per_day.append(counter_entity)
+    return mobileEntities, entities_per_day
+
 def generateMobileEntitiesByFolder(path):
     mobileEntities = []
     for trip_file in os.listdir(path):

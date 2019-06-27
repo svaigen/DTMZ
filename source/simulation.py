@@ -2,62 +2,59 @@ import mobileEntity as me
 import mixZone as mz
 import datetime as dt
 import dtmzUtils as utils
+import pandas as pd
+import graphOperations as graphOp
+import os
 
-def simulation(mixzones,mobile_entities,log_file):
+def simulation(G, n_mixzones, k_anonymity, mobile_entities_path,sim_file,mixzones_path, days, intervals):
+    print("Simulation begins at {}".format(dt.datetime.now()))
+    df_mixzones_selected = pd.read_csv(mixzones_path,delimiter=',', header=None)
+    counter_day = 0
+    counter_interval = 0
+    counter_changes = 0
+    mobile_entities, entities_per_day = utils.generateMobileEntities("{}".format(mobile_entities_path))
     time_references, time_ordered = generateTimeReferences(mobile_entities)
-    lf = open(log_file,'w')
-    lf.write("Initializing simulation at {}\n".format(dt.datetime.now()))
+    last_date = dt.datetime.strptime("{} {}".format(days[len(days)-1],intervals[len(intervals)-1]), '%Y-%m-%d %H:%M:%S')
+    
+    #beginning simulation for day 0, interval 0
+    print("Simulating initial interval")
+    mixzones = graphOp.selectMixZonesByEngenvectorAndRegion(n_mixzones,G,k_anonymity)    
     while time_ordered:
-        timestamp = time_ordered.pop(0)
-        entities = time_references[timestamp]
-        for entity in entities:
-            if entity.index_current_location == 0:
-                lf.write("m.e. {} started at {}\n".format(entity.pseudonym, utils.formatTimestamp(timestamp,"%H:%M:%S")))
-            if entity.in_mix_zone:
-                already_in_mix_zone = entity.mix_zone.isInCoverage((entity.getCurrentLocation()[0],entity.getCurrentLocation()[1]))
-                if not already_in_mix_zone:
-                    lf.write("m.e. {} exited from mz {} at time {}\n".format(entity.pseudonym,entity.mix_zone.id,utils.formatTimestamp(timestamp,"%H:%M:%S")))
-                    entity.exitMixZone()     
-            else:
-                mz_id = entity.enteringMixzone(mixzones)
-                if mz_id is not None:
-                    lf.write("m.e. {} entering in mz {} at time {}\n".format(entity.pseudonym,mz_id,utils.formatTimestamp(timestamp,"%H:%M:%S")))            
-            next_location = entity.nextLocation()
-            if entity.nextLocation() == -1:
-                lf.write("m.e. {} finished at {}\n".format(entity.pseudonym, utils.formatTimestamp(timestamp,"%H:%M:%S")))
-            else:
-                time = entity.getCurrentLocation()[2]
-                if time in time_references:
-                    time_references[time].append(entity)
+        timestamp = time_ordered.pop(0)        
+        considered_date = dt.datetime.strptime("{} {}".format(days[counter_day],intervals[counter_interval]), '%Y-%m-%d %H:%M:%S')
+        timestamp_date = dt.datetime.fromtimestamp(timestamp)
+        if (timestamp_date > considered_date):
+            genSimFile(days[counter_day],mixzones, entities_per_day[counter_day])
+            for m in mixzones:
+                for entity in m.entities:
+                    m.entities[entity].in_mix_zone = False
+                    m.entities[entity].mix_zone = None            
+            if (timestamp_date > last_date):
+                return None
+            counter_changes += 1
+            counter_day, counter_interval = adjustCounters(counter_changes, counter_day, counter_interval)
+            selected_mixzones = df_mixzones_selected.iloc[counter_changes -1].values.tolist()
+            mixzones = utils.generateMixZonesObjects(selected_mixzones,G,k_anonymity)
+            print("Simulating {} {}".format(days[counter_day],intervals[counter_interval]))
+        else:
+            entities = time_references[timestamp]
+            for entity in entities:
+                if entity.in_mix_zone:
+                    already_in_mix_zone = entity.mix_zone.isInCoverage((entity.getCurrentLocation()[0],entity.getCurrentLocation()[1]))
+                    if not already_in_mix_zone:
+                        entity.exitMixZone()     
                 else:
-                    time_references[time] = [entity]
-                    time_ordered.append(time)
-                    time_ordered.sort()
-    anonymized_counter = 0
-    covered_counter = 0
-    for entity in mobile_entities:
-        if(entity.number_of_anonymizations > 0):
-            anonymized_counter += 1
-            print("Entity anonymized: {} - ID: {}".format(entity.pseudonym,entity.id))
-            for anon in entity.anon_history:
-                print("- Pseudonym: {} / timestamp: {}".format(anon,entity.anon_history[anon]))
-            print()
-    for mixzone in mixzones:
-        if(mixzone.entities_covered is not None):
-            covered_counter += len(mixzone.entities_covered)
-            print("Mixzone {}, entities covered: {}".format(mixzone.id, len(mixzone.entities_covered)))
-            for entity in mixzone.entities_covered:
-                print("- {}".format(entity.pseudonym))
-            print()
-        if(mixzone.entities_anonymized is not None):
-            print("Mixzone {}, entities anonymized: {}".format(mixzone.id, len(mixzone.entities_anonymized)))
-            for entity in mixzone.entities_anonymized:
-                print("- {}".format(entity.pseudonym))
-            print()
-    lf.write("Ending simulation at {}\n".format(dt.datetime.now()))
-    lf.close()
-    print("Total number of entities covered by mixzones: {} / {}".format(covered_counter,len(mobile_entities)))
-    print("Total number of entitiver anonymized by mixzones: {} / {}".format(anonymized_counter, len(mobile_entities)))
+                    entity.enteringMixzone(mixzones)                    
+                next_location = entity.nextLocation()
+                if not entity.nextLocation() == -1:                    
+                    time = entity.getCurrentLocation()[2]
+                    if time in time_references:
+                        time_references[time].append(entity)
+                    else:
+                        time_references[time] = [entity]
+                        time_ordered.append(time)
+                        time_ordered.sort()
+    print("Simulation ends at {}".format(dt.datetime.now()))
     return None
 
 def generateTimeReferences(mobile_entities):
@@ -71,3 +68,32 @@ def generateTimeReferences(mobile_entities):
             time_references[entity.getCurrentLocation()[2]] = [entity]
     time_ordered.sort()
     return time_references, time_ordered
+
+def adjustCounters(counter_changes, counter_day, counter_interval):
+    counter_interval += 1
+    if counter_interval % 4 == 0:
+        counter_interval = 0
+        counter_day += 1
+    return counter_day, counter_interval
+
+def genSimFile(day, mixzones, coverage_day):
+    path_csv = "./simresults/{}.csv".format(day)
+    path_txt = "./simresults/{}.txt".format(day)
+    f = open(path_csv,"a") if (os.path.exists(path_csv)) else open(path_csv,"w")
+    f_txt = open(path_txt,"a") if (os.path.exists(path_txt)) else open(path_txt,"w")
+    for m in mixzones:
+        entities_covered = 0 if m.entities_covered is None else len(m.entities_covered)
+        entities_anonymized = 0 if m.entities_anonymized is None else len(m.entities_anonymized)
+        f.write("{},{},{},{}\n".format(m.id,entities_covered,entities_anonymized,coverage_day))
+        if entities_covered == 0:
+            f_txt.write(" <-> ")
+        else:
+            for e in m.entities_covered:
+                f_txt.write("{},".format(int(e.id)))
+            f_txt.write(" <-> ")
+        if not entities_anonymized == 0:
+            for e in m.entities_anonymized:
+                f_txt.write("{},".format(int(e.id)))
+        f_txt.write("\n")
+    f.close()
+    f_txt.close()
