@@ -12,6 +12,8 @@ class mobileEntity:
         self.pseudonym = pseudonym
         self.trace = [trace]
         self.id = id
+        self.anon_history = None
+        self.mix_zone = None
 
     def setAnon(self,id_anon):
         if self.anon_history == None:

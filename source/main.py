@@ -12,7 +12,8 @@ time_intervals = ['05:59:59','10:59:59','16:59:59','23:59:59']
 
 n_regions = 128
 n_mixzones = 8
-k_anonymity = 3
+radius_mixzone = 100
+k_anonymity = 4
 flow_window = 50
 nodes_file = "./../data/nodesByRegion.csv" 
 edges_file = "./../data/edges2.csv"
@@ -23,7 +24,7 @@ mixzones_path = "./../data/mixzones.csv"
 G = graphOp.buildGraphFromCSV(nodes_file, edges_file)
 # kmeans = graphOp.clusterizingNodes(G,n_regions)
 
-sim.simulation(G, n_mixzones, k_anonymity, mobile_entities_path,sim_file,mixzones_path, days, time_intervals)
+sim.simulation(G, n_mixzones, k_anonymity, mobile_entities_path,sim_file,mixzones_path, days, time_intervals, radius_mixzone)
 
 # graphOp.calculateMixZonesByFlow(days, time_intervals, n_regions, n_mixzones, k_anonymity, flow_window, region_flow_path, G, kmeans,mixzones_path)
 # mixzones = graphOp.selectMixZonesByEngenvectorAndRegion(n_mixzones,G,k_anonymity)

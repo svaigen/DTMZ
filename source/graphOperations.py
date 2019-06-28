@@ -105,7 +105,7 @@ def saveArticulationNodesInfo(G,output_file):
     f.close()
     return None
 
-def selectMixZonesByEngenvectorAndRegion(n_mixzones,G,k_anonymity):
+def selectMixZonesByEngenvectorAndRegion(n_mixzones,G,k_anonymity, radius_mixzone):
     centrality = nx.eigenvector_centrality(G,max_iter=1000)
     nodes_ordered = sorted(centrality.items(), key = operator.itemgetter(1), reverse = True)
     regions_placement = {}
@@ -117,10 +117,11 @@ def selectMixZonesByEngenvectorAndRegion(n_mixzones,G,k_anonymity):
             selected_mixzones.append(node)
             number_of_mixzones_placed += 1
         if number_of_mixzones_placed == n_mixzones:
-            return utils.generateMixZonesObjects(selected_mixzones,G,k_anonymity)
+            return utils.generateMixZonesObjects(selected_mixzones,G,k_anonymity, radius_mixzone)
 
 def calculateMixZonesByFlow(days, time_intervals, n_regions, n_mixzones, k_anonymity, flow_window, region_flow_path, G, kmeans, mixzones_path):
-    total_intervals = len(time_intervals) * len(days)
+    # total_intervals = len(time_intervals) * len(days)
+    total_intervals = len(days)
     regions_flow_history = [None] * n_regions
     for csv in os.listdir(region_flow_path):
         regions_flow_history[int(csv.split("region-")[1].split(".")[0])] = pd.read_csv("{}{}".format(region_flow_path,csv),delimiter=',')           
@@ -206,8 +207,11 @@ def generateFlowAsArray(regions_flow_history, days, time_intervals):
     for region in regions_flow_history:
         flows = []
         for day in days:
+            sum = 0 
             for interval in time_intervals:
-                flows.append(region.ix[utils.getIndexDay(day),interval])
+                sum+= region.ix[utils.getIndexDay(day),interval]
+                # flows.append(region.ix[utils.getIndexDay(day),interval])
+            flows.append(sum)                
         regions_flows[counter] = flows
         counter += 1
     return regions_flows

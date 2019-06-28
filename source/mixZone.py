@@ -20,13 +20,15 @@ class mixZone:
         self.geoLocation = (latitude,longitude)
         self.entities_covered = None
         self.entities_anonymized = None
+        self.entities = {}
     
     def isInCoverage(self, entity_location):
         distance = haversine((self.latitude,self.longitude),entity_location) * 1000
         return distance <= self.radius
 
     def entityExit(self,entity):
-        del self.entities[entity.id]        
+        if entity.id in self.entities:
+            del self.entities[entity.id]        
         return None    
 
     def entityEntered(self,entity):
@@ -46,6 +48,7 @@ class mixZone:
                 self.entities_anonymized = [self.entities[entity]]
             else:
                 self.entities_anonymized.append(self.entities[entity])
+        self.entities = {}
         return None
 
     def info(self):

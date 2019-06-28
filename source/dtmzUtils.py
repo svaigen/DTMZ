@@ -102,16 +102,16 @@ def visualizeMapByGraphComponent(nodes_df, G, region_file):
     plt.show()
     return None
 
-def generateMixZonesObjects(mixzones_ID,G,k_anonimity):
+def generateMixZonesObjects(mixzones_ID,G,k_anonimity, radius_mixzone):
     mixzones = []
     for id in mixzones_ID:
-        mixzones.append(mz.mixZone(id,k_anonimity,G.nodes[id]['latitude'],G.nodes[id]['longitude'],200))
+        mixzones.append(mz.mixZone(id,k_anonimity,G.nodes[id]['latitude'],G.nodes[id]['longitude'],radius_mixzone))
     return mixzones
 
 def generateMobileEntities(path):
     mobileEntities = []
     entities_per_day = []
-    # days = ['2008-05-17','2008-05-18','2008-05-19','2008-05-20']
+    # days = ['2008-05-17','2008-05-18']
     # for day in days:
     for day in os.listdir(path):
         counter_entity = 0

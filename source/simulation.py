@@ -6,7 +6,7 @@ import pandas as pd
 import graphOperations as graphOp
 import os
 
-def simulation(G, n_mixzones, k_anonymity, mobile_entities_path,sim_file,mixzones_path, days, intervals):
+def simulation(G, n_mixzones, k_anonymity, mobile_entities_path,sim_file,mixzones_path, days, intervals, radius_mixzone):
     print("Simulation begins at {}".format(dt.datetime.now()))
     df_mixzones_selected = pd.read_csv(mixzones_path,delimiter=',', header=None)
     counter_day = 0
@@ -14,14 +14,16 @@ def simulation(G, n_mixzones, k_anonymity, mobile_entities_path,sim_file,mixzone
     counter_changes = 0
     mobile_entities, entities_per_day = utils.generateMobileEntities("{}".format(mobile_entities_path))
     time_references, time_ordered = generateTimeReferences(mobile_entities)
-    last_date = dt.datetime.strptime("{} {}".format(days[len(days)-1],intervals[len(intervals)-1]), '%Y-%m-%d %H:%M:%S')
+    # last_date = dt.datetime.strptime("{} {}".format(days[len(days)-1],intervals[len(intervals)-1]), '%Y-%m-%d %H:%M:%S')
+    last_date = dt.datetime.strptime("{} 23:59:59".format(days[len(days)-1]), '%Y-%m-%d %H:%M:%S')
     
     #beginning simulation for day 0, interval 0
     print("Simulating initial interval")
-    mixzones = graphOp.selectMixZonesByEngenvectorAndRegion(n_mixzones,G,k_anonymity)    
+    mixzones = graphOp.selectMixZonesByEngenvectorAndRegion(n_mixzones,G,k_anonymity, radius_mixzone)    
     while time_ordered:
         timestamp = time_ordered.pop(0)        
-        considered_date = dt.datetime.strptime("{} {}".format(days[counter_day],intervals[counter_interval]), '%Y-%m-%d %H:%M:%S')
+        # considered_date = dt.datetime.strptime("{} {}".format(days[counter_day],intervals[counter_interval]), '%Y-%m-%d %H:%M:%S')
+        considered_date = dt.datetime.strptime("{} 23:59:59".format(days[counter_day]), '%Y-%m-%d %H:%M:%S')
         timestamp_date = dt.datetime.fromtimestamp(timestamp)
         if (timestamp_date > considered_date):
             genSimFile(days[counter_day],mixzones, entities_per_day[counter_day])
@@ -35,8 +37,9 @@ def simulation(G, n_mixzones, k_anonymity, mobile_entities_path,sim_file,mixzone
             counter_changes += 1
             counter_day, counter_interval = adjustCounters(counter_changes, counter_day, counter_interval)
             selected_mixzones = df_mixzones_selected.iloc[counter_changes -1].values.tolist()
-            mixzones = utils.generateMixZonesObjects(selected_mixzones,G,k_anonymity)
-            print("Simulating {} {}".format(days[counter_day],intervals[counter_interval]))
+            mixzones = utils.generateMixZonesObjects(selected_mixzones,G,k_anonymity,radius_mixzone)
+            # print("Simulating {} {}".format(days[counter_day],intervals[counter_interval]))
+            print("Simulating {}".format(days[counter_day]))
         else:
             entities = time_references[timestamp]
             for entity in entities:
@@ -71,10 +74,11 @@ def generateTimeReferences(mobile_entities):
     return time_references, time_ordered
 
 def adjustCounters(counter_changes, counter_day, counter_interval):
-    counter_interval += 1
-    if counter_interval % 4 == 0:
-        counter_interval = 0
-        counter_day += 1
+    # counter_interval += 1
+    # if counter_interval % 4 == 0:
+    #     counter_interval = 0
+    #     counter_day += 1
+    counter_day += 1
     return counter_day, counter_interval
 
 def genSimFile(day, mixzones, coverage_day):
