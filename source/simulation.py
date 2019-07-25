@@ -6,7 +6,7 @@ import pandas as pd
 import graphOperations as graphOp
 import os
 
-def simulation(G, n_mixzones, k_anonymity, mobile_entities_path,sim_file,mixzones_path, days, intervals, radius_mixzone):
+def simulation(G, n_mixzones, k_anonymity, mobile_entities_path,sim_file,mixzones_path, days, intervals, radius_mixzone, metric):
     print("Simulation begins at {}".format(dt.datetime.now()))
     df_mixzones_selected = pd.read_csv(mixzones_path,delimiter=',', header=None)
     counter_day = 0
@@ -19,14 +19,14 @@ def simulation(G, n_mixzones, k_anonymity, mobile_entities_path,sim_file,mixzone
     
     #beginning simulation for day 0, interval 0
     print("Simulating initial interval")
-    mixzones = graphOp.selectMixZonesByEngenvectorAndRegion(n_mixzones,G,k_anonymity, radius_mixzone)    
+    mixzones = graphOp.selectMixZonesByMetricAndRegion(n_mixzones,G,k_anonymity, radius_mixzone,metric)    
     while time_ordered:
         timestamp = time_ordered.pop(0)        
         # considered_date = dt.datetime.strptime("{} {}".format(days[counter_day],intervals[counter_interval]), '%Y-%m-%d %H:%M:%S')
         considered_date = dt.datetime.strptime("{} 23:59:59".format(days[counter_day]), '%Y-%m-%d %H:%M:%S')
         timestamp_date = dt.datetime.fromtimestamp(timestamp)
         if (timestamp_date > considered_date):
-            genSimFile(days[counter_day],mixzones, entities_per_day[counter_day])
+            genSimFile(days[counter_day],mixzones, entities_per_day[counter_day],n_mixzones,k_anonymity,radius_mixzone)
             for m in mixzones:
                 for entity in m.entities:
                     m.entities[entity].in_mix_zone = False
@@ -81,9 +81,12 @@ def adjustCounters(counter_changes, counter_day, counter_interval):
     counter_day += 1
     return counter_day, counter_interval
 
-def genSimFile(day, mixzones, coverage_day):
-    path_csv = "./simresults/{}.csv".format(day)
-    path_txt = "./simresults/{}.txt".format(day)
+def genSimFile(day, mixzones, coverage_day, n_mixzones, k_anonymity,radius_mixzone):
+    path = "./m{}_k{}_r{}/".format(n_mixzones,k_anonymity,radius_mixzone)
+    if not (os.path.exists(path)):
+        os.mkdir(path)
+    path_csv = "{}{}.csv".format(path,day)
+    path_txt = "{}{}.txt".format(path,day)
     f = open(path_csv,"a") if (os.path.exists(path_csv)) else open(path_csv,"w")
     f_txt = open(path_txt,"a") if (os.path.exists(path_txt)) else open(path_txt,"w")
     for m in mixzones:

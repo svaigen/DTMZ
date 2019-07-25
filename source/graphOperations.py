@@ -105,21 +105,31 @@ def saveArticulationNodesInfo(G,output_file):
     f.close()
     return None
 
-def selectMixZonesByEngenvectorAndRegion(n_mixzones,G,k_anonymity, radius_mixzone):
-    centrality = nx.eigenvector_centrality(G,max_iter=1000)
-    nodes_ordered = sorted(centrality.items(), key = operator.itemgetter(1), reverse = True)
+def selectMixZonesByMetricAndRegion(n_mixzones,G,k_anonymity, radius_mixzone,metric):
     regions_placement = {}
     selected_mixzones = []
     number_of_mixzones_placed = 0
-    for node, center_value in nodes_ordered:
-        if not (G.node[node]["region"] in regions_placement.keys()):
-            regions_placement[G.node[node]["region"]] = 1
-            selected_mixzones.append(node)
-            number_of_mixzones_placed += 1
-        if number_of_mixzones_placed == n_mixzones:
-            return utils.generateMixZonesObjects(selected_mixzones,G,k_anonymity, radius_mixzone)
+    if metric == utils.EIGENVECTOR_METRIC:
+        centrality = nx.eigenvector_centrality(G,max_iter=1000)
+        nodes_ordered = sorted(centrality.items(), key = operator.itemgetter(1), reverse = True)
+        for node, center_value in nodes_ordered:
+            if not (G.node[node]["region"] in regions_placement.keys()):
+                regions_placement[G.node[node]["region"]] = 1
+                selected_mixzones.append(node)
+                number_of_mixzones_placed += 1
+            if number_of_mixzones_placed == n_mixzones:
+                return utils.generateMixZonesObjects(selected_mixzones,G,k_anonymity, radius_mixzone)
+    else:
+        nodes_ordered = nx.voterank(G,max_iter=1000)
+        for node in nodes_ordered:
+            if not (G.node[node]["region"] in regions_placement.keys()):
+                regions_placement[G.node[node]["region"]] = 1
+                selected_mixzones.append(node)
+                number_of_mixzones_placed += 1
+            if number_of_mixzones_placed == n_mixzones:
+                return utils.generateMixZonesObjects(selected_mixzones,G,k_anonymity, radius_mixzone)
 
-def calculateMixZonesByFlow(days, time_intervals, n_regions, n_mixzones, k_anonymity, flow_window, region_flow_path, G, kmeans, mixzones_path):
+def calculateMixZonesByFlow(days, time_intervals, n_regions, n_mixzones, k_anonymity, flow_window, region_flow_path, G, kmeans, mixzones_path, metric):
     # total_intervals = len(time_intervals) * len(days)
     total_intervals = len(days)
     regions_flow_history = [None] * n_regions
@@ -136,18 +146,20 @@ def calculateMixZonesByFlow(days, time_intervals, n_regions, n_mixzones, k_anony
     mixzones_demand = []
     for i in range(total_intervals):
         mixzones_demand.append(calculateRegionsAndNumberOfMixZonesByFlowRate(ewma_matrix[:,i],sum_ewma[i], n_mixzones, n_regions))
-    regions_ordered_nodes = getOrderedNodesByEngenvector(G,n_regions)
+    regions_ordered_nodes = getOrderedNodesByMetric(G,n_regions,metric)
     fmz = open(mixzones_path,'w')
     for demand in mixzones_demand:
+        line = ""
         for key in demand:
             number_of_mixzones = demand[key]
-            fmz.write(getMixZonesByDemand(number_of_mixzones,regions_ordered_nodes[key],G))
-        fmz.write("\n")            
+            line += getMixZonesByDemand(number_of_mixzones,regions_ordered_nodes[key],G)
+        fmz.write(line[:-1])
+        fmz.write("\n")
     fmz.close()
     return None
 
 def getMixZonesByDemand(number_of_mixzones, nodes_ordered, G):
-    distance_min = 500
+    distance_min = 1000
     remaining_mixzones = number_of_mixzones
     places = []
     for node in nodes_ordered:
@@ -170,15 +182,23 @@ def getMixZonesByDemand(number_of_mixzones, nodes_ordered, G):
         response = response + "{},".format(place)
     return response
 
-def getOrderedNodesByEngenvector(G, n_regions):
+def getOrderedNodesByMetric(G, n_regions,metric):
     regions_ordered_nodes = [None] * n_regions
-    centrality = nx.eigenvector_centrality(G,max_iter=1000)
-    nodes_ordered = sorted(centrality.items(), key = operator.itemgetter(1), reverse = True)
-    for node, c in nodes_ordered:
-        if regions_ordered_nodes[int(G.node[node]['region'])] is None:
-            regions_ordered_nodes[int(G.node[node]['region'])] = [node]
-        else:
-            regions_ordered_nodes[int(G.node[node]['region'])].append(node)
+    if metric == utils.EIGENVECTOR_METRIC:
+        centrality = nx.eigenvector_centrality(G,max_iter=1000)
+        nodes_ordered = sorted(centrality.items(), key = operator.itemgetter(1), reverse = True)
+        for node, c in nodes_ordered:
+            if regions_ordered_nodes[int(G.node[node]['region'])] is None:
+                regions_ordered_nodes[int(G.node[node]['region'])] = [node]
+            else:
+                regions_ordered_nodes[int(G.node[node]['region'])].append(node)
+    else:
+        nodes_ordered = nx.voterank(G,max_iter=1000)
+        for node in nodes_ordered:
+            if regions_ordered_nodes[int(G.node[node]['region'])] is None:
+                regions_ordered_nodes[int(G.node[node]['region'])] = [node]
+            else:
+                regions_ordered_nodes[int(G.node[node]['region'])].append(node)
     return regions_ordered_nodes
 
 def calculateRegionsAndNumberOfMixZonesByFlowRate(ewma_values, ewma_sum, n_mixzones, n_regions):
@@ -199,6 +219,7 @@ def calculateRegionsAndNumberOfMixZonesByFlowRate(ewma_values, ewma_sum, n_mixzo
         else:
             regions_mixzones[rateID[0]] = mixzones_remaining
             mixzones_remaining = 0
+    print(regions_mixzones)
     return regions_mixzones
 
 def generateFlowAsArray(regions_flow_history, days, time_intervals):

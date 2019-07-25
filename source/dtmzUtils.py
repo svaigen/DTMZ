@@ -13,6 +13,9 @@ import os
 import datetime as dt
 import string
 
+EIGENVECTOR_METRIC = 1
+VOTERANK_METRIC = 2
+
 def removingNoiseFromNodes(nodes_file,G):
     nodes = pd.read_csv(nodes_file, delimiter=",")
     first = True
@@ -28,6 +31,8 @@ def removingNoiseFromNodes(nodes_file,G):
 
 def getColors(n):
     colors = dict(mcolors.BASE_COLORS, **mcolors.CSS4_COLORS)
+    del colors['black']
+    del colors['k']
     name_colors = []
     for name, c in colors.items():
         name_colors.append(name)
@@ -60,18 +65,18 @@ def visualizeMapBySpecificSet(nodes_df, region_file):
 
 def visualizeMapByRegion(nodes_df, nregions, region_file):
     points_list = []
+    colors = getColors(nregions)
     for i in range(nregions):
         nodes = nodes_df[nodes_df['region'] == i]
         points_list.append(buildMapPoints(nodes))
     region = buildMapRegion(region_file)
     fig, ax = plt.subplots(1, subplot_kw=dict(alpha=0.3))
-    map = region.plot(ax=ax, color='gray')
-    i = 0
-    colors = getColors(nregions)
+    map = region.plot(ax=ax, color='black')
+    i = 0    
     for points in points_list:
         points.plot(ax=map, marker="o", markersize=5, alpha=0.5, color=colors[i])
         i += 1
-    ax.set_title("Map visualization")
+    ax.set_title("San Francisco")
     plt.show()
     return None
 
